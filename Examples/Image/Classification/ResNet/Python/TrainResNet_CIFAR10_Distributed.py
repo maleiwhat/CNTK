@@ -105,23 +105,17 @@ def train_and_test(network, trainer, train_source, test_source, progress_printer
         network['label']: train_source.streams.labels
     }
 
-    training_session = cntk.training_session(
-        training_minibatch_source = train_source, 
-        trainer = trainer,
-        mb_size_schedule = cntk.minibatch_size_schedule(minibatch_size),
-        progress_printer = progress_printer,
-        model_inputs_to_mb_source_mapping = input_map, 
-        checkpoint_frequency = epoch_size,
-        checkpoint_filename="ResNet_CIFAR10_DataAug", 
-        progress_frequency=epoch_size,
-        cv_source=test_source,
-        cv_mb_size_schedule=cntk.minibatch_size_schedule(16),
-        restore=False)
-	
+    config = cntk.SessionConfig(mb_source = train_source, 
+                                mb_size = minibatch_size,
+                                var_to_stream = input_map) \
+        .checkpointing(frequency=epoch_size, filename="ResNet_CIFAR10_DataAug", restore=False) \ 
+        .progress_printing(writers=progress_printer, frequency=epoch_size) \
+        .cross_validation(source=test_source, mb_size=16)
+
     if profiling:
         start_profiler(sync_gpu=True)
         
-    training_session.train()
+    cntk.training_session(trainer=trainer, config=config).train()
     
     if profiling:
         stop_profiler()
